@@ -13,11 +13,11 @@ jobs:
     - name: Login to ACR
       uses: docker/login-action@v3
       with:
-        registry: navexmcpcr.azurecr.io
+        registry: navexmcpregistry.azurecr.io
         username: ${{ secrets.ACR_USERNAME }}
         password: ${{ secrets.ACR_PASSWORD }}
 
     - name: Build and Push
       run: |
-        docker build -t navexmcpcr.azurecr.io/navex-mcp:v1 .
-        docker push navexmcpcr.azurecr.io/navex-mcp:v1
+        docker build -t navexmcpregistry.azurecr.io/navex-mcp:v1 .
+        docker push navexmcpregistry.azurecr.io/navex-mcp:v1
