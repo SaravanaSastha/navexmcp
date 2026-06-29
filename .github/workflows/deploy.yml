@@ -19,5 +19,5 @@ jobs:
 
     - name: Build and Push
       run: |
-        docker build -t navexmcpregistry.azurecr.io/navex-mcp:v1 .
+        docker build -t navexmcpregistry.azurecr.io/navex-mcp:v1 ./V1
         docker push navexmcpregistry.azurecr.io/navex-mcp:v1
