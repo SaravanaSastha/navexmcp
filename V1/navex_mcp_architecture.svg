@@ -1,0 +1,159 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1480 1000" font-family="Segoe UI, Arial, sans-serif">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#444"/>
+    </marker>
+  </defs>
+  <rect x="0" y="0" width="1480" height="1000" fill="#ffffff"/>
+  <text x="740" y="40" text-anchor="middle" font-size="23" font-weight="700" fill="#1a1a2e">NAVEX IRM MCP Server — Solution Architecture (C4 Container View)</text>
+
+  <!-- ===== Boundaries ===== -->
+  <rect x="320" y="150" width="300" height="560" rx="10" fill="none" stroke="#7A39B0" stroke-width="2" stroke-dasharray="7 5"/>
+  <text x="335" y="176" font-size="14" font-weight="700" fill="#7A39B0">Microsoft 365 / Power Platform</text>
+
+  <rect x="660" y="150" width="560" height="760" rx="10" fill="none" stroke="#0A66C2" stroke-width="2" stroke-dasharray="7 5"/>
+  <text x="675" y="176" font-size="14" font-weight="700" fill="#0A66C2">Microsoft Azure</text>
+
+  <rect x="685" y="210" width="370" height="475" rx="10" fill="none" stroke="#5B8C4F" stroke-width="2" stroke-dasharray="5 4"/>
+  <text x="697" y="232" font-size="13" font-weight="700" fill="#3f6a34">Azure Container App — Facade (TypeScript / Node)</text>
+
+  <!-- ===== LLM ===== -->
+  <rect x="70" y="78" width="240" height="62" rx="8" fill="#FDEFE9" stroke="#C0563B" stroke-width="1.5"/>
+  <text x="190" y="104" text-anchor="middle" font-size="13" font-weight="600" fill="#7a2f1c">AI Model Provider</text>
+  <text x="190" y="123" text-anchor="middle" font-size="11.5" fill="#7a2f1c">(LLM behind Copilot)</text>
+
+  <!-- ===== Actors ===== -->
+  <rect x="70" y="300" width="180" height="70" rx="8" fill="#ECEFF3" stroke="#555" stroke-width="1.5"/>
+  <text x="160" y="330" text-anchor="middle" font-size="13" font-weight="600" fill="#333">GRC User / Analyst</text>
+  <text x="160" y="349" text-anchor="middle" font-size="11.5" fill="#333">(natural language)</text>
+
+  <rect x="70" y="420" width="180" height="70" rx="8" fill="#ECEFF3" stroke="#555" stroke-width="1.5"/>
+  <text x="160" y="450" text-anchor="middle" font-size="13" font-weight="600" fill="#333">Email Requester</text>
+  <text x="160" y="469" text-anchor="middle" font-size="11.5" fill="#333">(report exports)</text>
+
+  <rect x="70" y="540" width="180" height="80" rx="8" fill="#ECEFF3" stroke="#555" stroke-width="1.5"/>
+  <text x="160" y="570" text-anchor="middle" font-size="13" font-weight="600" fill="#333">30+ Power Automate</text>
+  <text x="160" y="589" text-anchor="middle" font-size="13" font-weight="600" fill="#333">Cloud Flows</text>
+  <text x="160" y="607" text-anchor="middle" font-size="11" fill="#333">(existing)</text>
+
+  <!-- ===== M365 nodes ===== -->
+  <rect x="350" y="300" width="240" height="70" rx="8" fill="#F3E9FB" stroke="#7A39B0" stroke-width="1.5"/>
+  <text x="470" y="330" text-anchor="middle" font-size="13" font-weight="600" fill="#4a2270">Copilot Studio Agent</text>
+  <text x="470" y="349" text-anchor="middle" font-size="11.5" fill="#4a2270">generative orchestration</text>
+
+  <rect x="350" y="420" width="240" height="70" rx="8" fill="#F3E9FB" stroke="#7A39B0" stroke-width="1.5"/>
+  <text x="470" y="450" text-anchor="middle" font-size="13" font-weight="600" fill="#4a2270">Power Automate</text>
+  <text x="470" y="469" text-anchor="middle" font-size="11.5" fill="#4a2270">Agent / Email Flow</text>
+
+  <rect x="350" y="570" width="240" height="68" rx="8" fill="#E7D6F5" stroke="#7A39B0" stroke-width="1.8"/>
+  <text x="470" y="600" text-anchor="middle" font-size="13" font-weight="700" fill="#4a2270">Power Platform</text>
+  <text x="470" y="619" text-anchor="middle" font-size="12.5" font-weight="700" fill="#4a2270">Custom Connector</text>
+
+  <!-- ===== Container App inner nodes ===== -->
+  <rect x="705" y="250" width="330" height="56" rx="7" fill="#EAF1FB" stroke="#2F6FB0" stroke-width="1.5"/>
+  <text x="870" y="273" text-anchor="middle" font-size="12.5" font-weight="600" fill="#1f4e79">Express HTTP Server</text>
+  <text x="870" y="291" text-anchor="middle" font-size="11" fill="#1f4e79">/healthz · /mcp · /api/*</text>
+
+  <rect x="705" y="322" width="330" height="48" rx="7" fill="#EAF1FB" stroke="#2F6FB0" stroke-width="1.5"/>
+  <text x="870" y="351" text-anchor="middle" font-size="12.5" font-weight="600" fill="#1f4e79">Auth Middleware — Basic pass-through (default)</text>
+
+  <rect x="705" y="388" width="160" height="56" rx="7" fill="#EAF1FB" stroke="#2F6FB0" stroke-width="1.5"/>
+  <text x="785" y="411" text-anchor="middle" font-size="12.5" font-weight="600" fill="#1f4e79">MCP Endpoint</text>
+  <text x="785" y="429" text-anchor="middle" font-size="10.5" fill="#1f4e79">Streamable HTTP /mcp</text>
+
+  <rect x="875" y="388" width="160" height="56" rx="7" fill="#EAF1FB" stroke="#2F6FB0" stroke-width="1.5"/>
+  <text x="955" y="411" text-anchor="middle" font-size="12.5" font-weight="600" fill="#1f4e79">REST API</text>
+  <text x="955" y="429" text-anchor="middle" font-size="10.5" fill="#1f4e79">/api/* (OpenAPI)</text>
+
+  <rect x="705" y="460" width="330" height="56" rx="7" fill="#DCEBF9" stroke="#2F6FB0" stroke-width="1.8"/>
+  <text x="870" y="483" text-anchor="middle" font-size="12.5" font-weight="700" fill="#1f4e79">Shared Core</text>
+  <text x="870" y="501" text-anchor="middle" font-size="10.5" fill="#1f4e79">NavexClient · Tools · Resources · Zod validation</text>
+
+  <rect x="705" y="532" width="160" height="62" rx="7" fill="#EAF1FB" stroke="#2F6FB0" stroke-width="1.5"/>
+  <text x="785" y="557" text-anchor="middle" font-size="12" font-weight="600" fill="#1f4e79">Session Manager</text>
+  <text x="785" y="574" text-anchor="middle" font-size="10" fill="#1f4e79">login · Ping · re-login</text>
+
+  <rect x="875" y="532" width="160" height="62" rx="7" fill="#EAF1FB" stroke="#2F6FB0" stroke-width="1.5"/>
+  <text x="955" y="557" text-anchor="middle" font-size="12" font-weight="600" fill="#1f4e79">DCF Metadata Cache</text>
+  <text x="955" y="574" text-anchor="middle" font-size="10" fill="#1f4e79">components &amp; fields (TTL)</text>
+
+  <rect x="705" y="612" width="330" height="48" rx="7" fill="#EAF1FB" stroke="#2F6FB0" stroke-width="1.5"/>
+  <text x="870" y="641" text-anchor="middle" font-size="12.5" font-weight="600" fill="#1f4e79">Logging + OpenTelemetry</text>
+
+  <!-- ===== Azure side resources ===== -->
+  <rect x="1080" y="250" width="118" height="60" rx="7" fill="#EDEDED" stroke="#777" stroke-width="1.5"/>
+  <text x="1139" y="276" text-anchor="middle" font-size="11.5" font-weight="600" fill="#444">Container</text>
+  <text x="1139" y="293" text-anchor="middle" font-size="11.5" font-weight="600" fill="#444">Registry</text>
+
+  <rect x="1080" y="360" width="118" height="60" rx="7" fill="#EDEDED" stroke="#777" stroke-width="1.5"/>
+  <text x="1139" y="386" text-anchor="middle" font-size="11.5" font-weight="600" fill="#444">Key Vault</text>
+  <text x="1139" y="403" text-anchor="middle" font-size="9.5" fill="#444">(opt. svc creds)</text>
+
+  <rect x="1080" y="470" width="118" height="60" rx="7" fill="#EDEDED" stroke="#777" stroke-width="1.5"/>
+  <text x="1139" y="496" text-anchor="middle" font-size="11.5" font-weight="600" fill="#444">Log Analytics</text>
+  <text x="1139" y="513" text-anchor="middle" font-size="9.5" fill="#444">/ App Insights</text>
+
+  <!-- ===== NAVEX external ===== -->
+  <rect x="1262" y="455" width="190" height="160" rx="9" fill="#FBEEDD" stroke="#C77A2E" stroke-width="1.8"/>
+  <text x="1357" y="490" text-anchor="middle" font-size="13" font-weight="700" fill="#8a4d12">NAVEX IRM</text>
+  <text x="1357" y="508" text-anchor="middle" font-size="11" fill="#8a4d12">(Keylight / Lockpath)</text>
+  <text x="1357" y="534" text-anchor="middle" font-size="10.5" fill="#8a4d12">Security Service</text>
+  <text x="1357" y="551" text-anchor="middle" font-size="10.5" fill="#8a4d12">Component Service</text>
+  <text x="1357" y="568" text-anchor="middle" font-size="10.5" fill="#8a4d12">Report Service</text>
+  <text x="1357" y="585" text-anchor="middle" font-size="10.5" fill="#8a4d12">Assessment Service</text>
+
+  <!-- ===== Edges ===== -->
+  <!-- actors to M365 -->
+  <line x1="250" y1="335" x2="348" y2="335" stroke="#444" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="299" y="328" text-anchor="middle" font-size="10.5" fill="#555">chat</text>
+  <line x1="250" y1="455" x2="348" y2="455" stroke="#444" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="299" y="448" text-anchor="middle" font-size="10.5" fill="#555">email</text>
+  <line x1="250" y1="585" x2="348" y2="600" stroke="#444" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="299" y="576" text-anchor="middle" font-size="10.5" fill="#555">HTTP</text>
+
+  <!-- Copilot to LLM -->
+  <line x1="365" y1="300" x2="210" y2="142" stroke="#444" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#arrow)"/>
+  <text x="250" y="225" text-anchor="middle" font-size="10.5" fill="#555">prompts / results</text>
+
+  <!-- Copilot & PA flow to connector -->
+  <line x1="470" y1="370" x2="470" y2="568" stroke="#444" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="520" y="420" text-anchor="middle" font-size="10.5" fill="#555">tool calls</text>
+  <line x1="500" y1="490" x2="500" y2="568" stroke="#444" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- connector to Express -->
+  <line x1="590" y1="595" x2="703" y2="290" stroke="#0A66C2" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="648" y="450" text-anchor="middle" font-size="10.5" font-weight="600" fill="#0A66C2" transform="rotate(-68 648 450)">HTTPS · Basic auth</text>
+
+  <!-- internal chain -->
+  <line x1="870" y1="306" x2="870" y2="320" stroke="#444" stroke-width="1.4" marker-end="url(#arrow)"/>
+  <line x1="830" y1="370" x2="800" y2="386" stroke="#444" stroke-width="1.4" marker-end="url(#arrow)"/>
+  <line x1="910" y1="370" x2="945" y2="386" stroke="#444" stroke-width="1.4" marker-end="url(#arrow)"/>
+  <line x1="800" y1="444" x2="835" y2="458" stroke="#444" stroke-width="1.4" marker-end="url(#arrow)"/>
+  <line x1="945" y1="444" x2="905" y2="458" stroke="#444" stroke-width="1.4" marker-end="url(#arrow)"/>
+  <line x1="835" y1="516" x2="800" y2="530" stroke="#444" stroke-width="1.4" marker-end="url(#arrow)"/>
+  <line x1="905" y1="516" x2="945" y2="530" stroke="#444" stroke-width="1.4" marker-end="url(#arrow)"/>
+  <line x1="870" y1="516" x2="870" y2="610" stroke="#bbb" stroke-width="1.2" stroke-dasharray="3 3" marker-end="url(#arrow)"/>
+
+  <!-- session/cache to NAVEX -->
+  <path d="M865,566 C1120,566 1120,560 1260,545" fill="none" stroke="#C77A2E" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="1080" y="600" text-anchor="middle" font-size="10.5" font-weight="600" fill="#a85c1c">cookie session · HTTPS REST</text>
+  <path d="M1035,560 C1150,560 1180,548 1260,535" fill="none" stroke="#C77A2E" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#arrow)"/>
+  <text x="1150" y="528" text-anchor="middle" font-size="10" fill="#a85c1c">metadata</text>
+
+  <!-- azure resources dashed -->
+  <line x1="1080" y1="280" x2="1037" y2="278" stroke="#777" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#arrow)"/>
+  <text x="1058" y="270" text-anchor="middle" font-size="9.5" fill="#666">image</text>
+  <line x1="1080" y1="390" x2="1037" y2="470" stroke="#777" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#arrow)"/>
+  <text x="1078" y="445" text-anchor="middle" font-size="9.5" fill="#666">secrets</text>
+  <line x1="1037" y1="636" x2="1100" y2="532" stroke="#777" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#arrow)"/>
+  <text x="1090" y="610" text-anchor="middle" font-size="9.5" fill="#666">telemetry</text>
+
+  <!-- legend -->
+  <text x="70" y="720" font-size="12" font-weight="700" fill="#333">Legend</text>
+  <line x1="70" y1="735" x2="110" y2="735" stroke="#444" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <text x="118" y="739" font-size="11" fill="#444">synchronous request</text>
+  <line x1="270" y1="735" x2="310" y2="735" stroke="#444" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#arrow)"/>
+  <text x="318" y="739" font-size="11" fill="#444">supporting / async dependency</text>
+  <rect x="70" y="752" width="22" height="14" rx="3" fill="none" stroke="#7A39B0" stroke-dasharray="5 4"/>
+  <text x="100" y="763" font-size="11" fill="#444">trust boundary</text>
+</svg>

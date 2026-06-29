@@ -1,0 +1,60 @@
+flowchart TB
+  %% ===== Actors =====
+  user["GRC User / Analyst<br/>(natural language)"]
+  flows["30+ Power Automate<br/>Cloud Flows (existing)"]
+  emailUser["Email Requester<br/>(report exports)"]
+
+  %% ===== Microsoft 365 / Power Platform boundary =====
+  subgraph M365["Microsoft 365 / Power Platform"]
+    direction TB
+    copilot["Copilot Studio Agent<br/>generative orchestration"]
+    connector["Power Platform<br/>Custom Connector"]
+    paFlow["Power Automate<br/>Agent / Email Flow"]
+  end
+
+  llm["AI Model Provider<br/>(LLM behind Copilot)"]
+
+  %% ===== Azure boundary =====
+  subgraph AZ["Microsoft Azure"]
+    direction TB
+    subgraph CA["Azure Container App (Facade Service - TypeScript/Node)"]
+      direction TB
+      http["Express HTTP Server<br/>/healthz - /mcp - /api/*"]
+      auth["Auth Middleware<br/>Basic pass-through (default)"]
+      mcp["MCP Endpoint<br/>Streamable HTTP /mcp"]
+      rest["REST API<br/>/api/* (OpenAPI)"]
+      core["Shared Core<br/>NavexClient - Tools - Resources - Zod"]
+      session["Session Manager<br/>login / Ping / re-login"]
+      cache["DCF Metadata Cache<br/>components & fields (TTL)"]
+      obs["Logging + OpenTelemetry"]
+    end
+    acr["Azure Container Registry"]
+    kv["Azure Key Vault<br/>(optional service creds)"]
+    logs["Log Analytics /<br/>App Insights"]
+  end
+
+  %% ===== External system =====
+  navex["NAVEX IRM (Keylight/Lockpath)<br/>Security / Component / Report / Assessment Services"]
+
+  %% ===== Edges =====
+  user -->|chat| copilot
+  emailUser -->|email request| paFlow
+  copilot -->|tool calls| connector
+  paFlow -->|HTTP actions| connector
+  flows -->|HTTP actions| connector
+  copilot -.->|prompts/results| llm
+  connector -->|HTTPS Basic auth| http
+
+  http --> auth --> mcp
+  auth --> rest
+  mcp --> core
+  rest --> core
+  core --> session
+  core --> cache
+  core --> obs
+  session -->|cookie session<br/>HTTPS REST| navex
+  cache -->|metadata| navex
+
+  acr -.->|image| CA
+  kv -.->|secrets| core
+  obs -.->|telemetry| logs

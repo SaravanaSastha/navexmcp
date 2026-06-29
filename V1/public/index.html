@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>NAVEX IRM · MCP Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#0b0e14; --ink-2:#10141d; --ink-3:#161b27; --line:#222a3a; --line-2:#2d3750;
+  --txt:#c9d2e3; --txt-dim:#7c879d; --txt-faint:#4d5872;
+  --amber:#ffb454; --amber-glow:rgba(255,180,84,.14);
+  --green:#7fd88f; --red:#ff6b6b; --cyan:#6cc7e6; --violet:#b794f6;
+  --mono:'IBM Plex Mono',monospace; --sans:'IBM Plex Sans',sans-serif; --disp:'Chakra Petch',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:var(--ink); color:var(--txt); font-family:var(--sans); font-size:14px;
+  overflow:hidden;
+}
+/* atmosphere: scanlines + vignette */
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:999;
+  background:repeating-linear-gradient(0deg,transparent 0 2px,rgba(255,255,255,.012) 2px 4px);}
+body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:998;
+  background:radial-gradient(ellipse 120% 90% at 50% 0%,transparent 60%,rgba(0,0,0,.5));}
+
+/* ---------- layout ---------- */
+#app{display:grid;grid-template-rows:52px 1fr;height:100vh}
+#main{display:grid;grid-template-columns:288px 1fr;min-height:0}
+#main.inspector-open{grid-template-columns:288px 1fr 380px}
+
+/* ---------- top bar ---------- */
+#topbar{display:flex;align-items:center;gap:16px;padding:0 18px;border-bottom:1px solid var(--line);background:var(--ink-2)}
+#topbar .brand{font-family:var(--disp);font-weight:700;font-size:15px;letter-spacing:.14em;color:#fff}
+#topbar .brand b{color:var(--amber)}
+#topbar .sub{font-family:var(--mono);font-size:10.5px;color:var(--txt-faint);letter-spacing:.08em;text-transform:uppercase}
+.statusdot{width:8px;height:8px;border-radius:50%;background:var(--red);box-shadow:0 0 8px var(--red);transition:.3s}
+.statusdot.on{background:var(--green);box-shadow:0 0 10px var(--green)}
+#conninfo{font-family:var(--mono);font-size:11.5px;color:var(--txt-dim)}
+#topbar .right{margin-left:auto;display:flex;gap:8px;align-items:center}
+.tbtn{font-family:var(--mono);font-size:11px;letter-spacing:.05em;color:var(--txt-dim);background:transparent;
+  border:1px solid var(--line);border-radius:4px;padding:5px 11px;cursor:pointer;transition:.15s}
+.tbtn:hover{color:var(--amber);border-color:var(--amber)}
+.tbtn.primary{color:var(--ink);background:var(--amber);border-color:var(--amber);font-weight:600}
+.tbtn.primary:hover{filter:brightness(1.1)}
+
+/* ---------- sidebar ---------- */
+#side{border-right:1px solid var(--line);background:var(--ink-2);overflow-y:auto;padding:14px 0}
+#side h3{font-family:var(--disp);font-size:10.5px;letter-spacing:.22em;color:var(--txt-faint);text-transform:uppercase;
+  padding:12px 18px 6px;display:flex;align-items:center;gap:8px}
+#side h3::after{content:'';flex:1;height:1px;background:var(--line)}
+.toolrow{display:flex;align-items:center;gap:9px;width:100%;text-align:left;background:none;border:0;color:var(--txt);
+  font-family:var(--mono);font-size:12px;padding:6px 18px;cursor:pointer;border-left:2px solid transparent;transition:.12s}
+.toolrow:hover{background:var(--ink-3);border-left-color:var(--amber);color:#fff}
+.toolrow .tag{margin-left:auto;font-size:9px;letter-spacing:.08em;color:var(--txt-faint)}
+.toolrow.danger .tag{color:var(--red)}
+#sessioninfo{padding:12px 18px;font-family:var(--mono);font-size:10.5px;color:var(--txt-faint);line-height:1.9}
+
+/* ---------- chat ---------- */
+#chatwrap{display:flex;flex-direction:column;min-width:0;min-height:0;background:
+  radial-gradient(900px 500px at 70% -10%,var(--amber-glow),transparent 70%),var(--ink)}
+#chat{flex:1;overflow-y:auto;padding:26px 34px;scroll-behavior:smooth}
+.msg{max-width:980px;margin:0 0 18px;animation:rise .25s ease both}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.msg .who{font-family:var(--disp);font-size:10px;letter-spacing:.2em;text-transform:uppercase;margin-bottom:6px}
+.msg.user .who{color:var(--cyan)} .msg.bot .who{color:var(--amber)} .msg.err .who{color:var(--red)}
+.msg .body{border:1px solid var(--line);border-radius:6px;background:var(--ink-2);padding:12px 16px;line-height:1.55;overflow-x:auto}
+.msg.user .body{background:transparent;border-color:var(--line-2);font-family:var(--mono);font-size:13px;color:#e8edf7}
+.msg.err .body{border-color:rgba(255,107,107,.4);background:rgba(255,107,107,.05)}
+.msg .meta{font-family:var(--mono);font-size:10px;color:var(--txt-faint);margin-top:5px}
+.msg code{font-family:var(--mono);font-size:12px;color:var(--amber)}
+.msg pre{font-family:var(--mono);font-size:12px;line-height:1.5;color:#aft;white-space:pre-wrap;word-break:break-word;color:#a8e6b0}
+table.grid{border-collapse:collapse;font-family:var(--mono);font-size:11.5px;width:100%;margin:4px 0}
+table.grid th{font-family:var(--disp);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--amber);
+  text-align:left;padding:6px 12px 6px 0;border-bottom:1px solid var(--line-2)}
+table.grid td{padding:5px 12px 5px 0;border-bottom:1px solid var(--line);color:var(--txt);vertical-align:top}
+table.grid tr:hover td{color:#fff}
+.chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:9px}
+.chip{font-family:var(--mono);font-size:11px;color:var(--cyan);background:rgba(108,199,230,.07);
+  border:1px solid rgba(108,199,230,.25);border-radius:99px;padding:3.5px 11px;cursor:pointer;transition:.12s}
+.chip:hover{background:rgba(108,199,230,.16)}
+
+/* ---------- composer ---------- */
+#composer{border-top:1px solid var(--line);background:var(--ink-2);padding:14px 34px 16px}
+#suggest{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:10px;min-height:0}
+#inputrow{display:flex;gap:10px;align-items:center;max-width:980px}
+#prompt-mark{font-family:var(--mono);color:var(--amber);font-weight:600}
+#cmd{flex:1;background:var(--ink);border:1px solid var(--line-2);border-radius:6px;color:#eef2fa;
+  font-family:var(--mono);font-size:13.5px;padding:11px 14px;outline:none;transition:.15s}
+#cmd:focus{border-color:var(--amber);box-shadow:0 0 0 3px var(--amber-glow)}
+#send{font-family:var(--disp);font-weight:600;font-size:12px;letter-spacing:.1em;color:var(--ink);
+  background:var(--amber);border:0;border-radius:6px;padding:11px 22px;cursor:pointer}
+#send:hover{filter:brightness(1.08)}
+#send:disabled{opacity:.4;cursor:wait}
+
+/* ---------- inspector ---------- */
+#inspector{border-left:1px solid var(--line);background:var(--ink-2);display:none;flex-direction:column;min-height:0}
+#main.inspector-open #inspector{display:flex}
+#inspector header{padding:13px 16px;border-bottom:1px solid var(--line);font-family:var(--disp);
+  font-size:11px;letter-spacing:.2em;color:var(--txt-dim);text-transform:uppercase;display:flex;justify-content:space-between}
+#wirelog{flex:1;overflow-y:auto;padding:10px 14px;font-family:var(--mono);font-size:10.8px;line-height:1.55}
+.wire{margin-bottom:12px;border-left:2px solid var(--line-2);padding-left:10px}
+.wire .dir{color:var(--txt-faint);font-size:9.5px;letter-spacing:.12em}
+.wire.req .dir{color:var(--cyan)} .wire.res .dir{color:var(--green)} .wire.fail .dir{color:var(--red)}
+.wire pre{white-space:pre-wrap;word-break:break-all;color:var(--txt-dim);max-height:240px;overflow-y:auto}
+
+/* ---------- connect overlay ---------- */
+#gate{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;
+  background:radial-gradient(800px 500px at 50% 30%,#141a28,var(--ink) 75%)}
+#gate .card{width:400px;border:1px solid var(--line-2);border-radius:10px;background:rgba(16,20,29,.9);
+  backdrop-filter:blur(6px);padding:34px 36px;animation:rise .4s ease both}
+#gate .glyph{font-family:var(--disp);font-size:11px;letter-spacing:.3em;color:var(--amber);margin-bottom:6px}
+#gate h1{font-family:var(--disp);font-weight:700;font-size:22px;color:#fff;letter-spacing:.04em;margin-bottom:4px}
+#gate p{color:var(--txt-dim);font-size:12.5px;line-height:1.6;margin-bottom:22px}
+#gate label{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.15em;text-transform:uppercase;
+  color:var(--txt-faint);margin:14px 0 5px}
+#gate input{width:100%;background:var(--ink);border:1px solid var(--line-2);border-radius:6px;color:#eef2fa;
+  font-family:var(--mono);font-size:13px;padding:10px 12px;outline:none}
+#gate input:focus{border-color:var(--amber)}
+#gate button{width:100%;margin-top:22px;font-family:var(--disp);font-weight:600;font-size:13px;letter-spacing:.12em;
+  color:var(--ink);background:var(--amber);border:0;border-radius:6px;padding:12px;cursor:pointer}
+#gate .err{color:var(--red);font-size:12px;margin-top:12px;min-height:16px;font-family:var(--mono)}
+#gate .note{margin-top:16px;font-size:10.5px;color:var(--txt-faint);font-family:var(--mono);line-height:1.6}
+
+/* ---------- modal (tool form) ---------- */
+#modalwrap{position:fixed;inset:0;z-index:900;display:none;align-items:center;justify-content:center;background:rgba(5,7,11,.7)}
+#modalwrap.open{display:flex}
+#modal{width:520px;max-height:82vh;overflow-y:auto;border:1px solid var(--line-2);border-radius:10px;background:var(--ink-2);padding:26px 28px}
+#modal h2{font-family:var(--disp);font-size:16px;color:#fff;letter-spacing:.05em}
+#modal .desc{color:var(--txt-dim);font-size:12px;line-height:1.55;margin:7px 0 16px}
+#modal label{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--txt-faint);margin:12px 0 4px}
+#modal label .req{color:var(--red)}
+#modal input,#modal textarea,#modal select{width:100%;background:var(--ink);border:1px solid var(--line-2);border-radius:5px;
+  color:#eef2fa;font-family:var(--mono);font-size:12.5px;padding:8px 11px;outline:none}
+#modal textarea{min-height:74px;resize:vertical}
+#modal .hint{font-size:10.5px;color:var(--txt-faint);margin-top:3px;line-height:1.5}
+#modal .actions{display:flex;gap:10px;margin-top:22px;justify-content:flex-end}
+::-webkit-scrollbar{width:9px;height:9px}::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:5px}
+::-webkit-scrollbar-track{background:transparent}
+</style>
+</head>
+<body>
+
+<!-- connect gate -->
+<div id="gate">
+  <div class="card">
+    <div class="glyph">▌NAVEX IRM // MCP</div>
+    <h1>Operations Console</h1>
+    <p>Authenticate with your NAVEX account. Credentials stay in this tab and are sent only to the local MCP facade over HTTP Basic.</p>
+    <label>NAVEX username</label>
+    <input id="g-user" autocomplete="username" spellcheck="false" />
+    <label>NAVEX password</label>
+    <input id="g-pass" type="password" autocomplete="current-password" />
+    <button id="g-go">ESTABLISH SESSION</button>
+    <div class="err" id="g-err"></div>
+    <div class="note">Server: <span id="g-host"></span><br/>Sandbox/dev use only — destructive tools require explicit confirmation.</div>
+  </div>
+</div>
+
+<!-- tool form modal -->
+<div id="modalwrap"><div id="modal"></div></div>
+
+<div id="app">
+  <div id="topbar">
+    <span class="brand">NAVEX<b>·</b>MCP</span>
+    <span class="sub">ops console</span>
+    <span class="statusdot" id="dot"></span>
+    <span id="conninfo">disconnected</span>
+    <div class="right">
+      <button class="tbtn" id="btn-tour">▶ demo tour</button>
+      <button class="tbtn" id="btn-inspector">inspector</button>
+      <button class="tbtn" id="btn-clear">clear</button>
+      <button class="tbtn" id="btn-logout">disconnect</button>
+    </div>
+  </div>
+  <div id="main">
+    <nav id="side">
+      <h3>session</h3>
+      <div id="sessioninfo">latency —<br/>calls 0 · errors 0</div>
+      <div id="toolgroups"><h3>tools</h3><div style="padding:8px 18px;color:var(--txt-faint);font-family:var(--mono);font-size:11px">connect to load…</div></div>
+    </nav>
+    <div id="chatwrap">
+      <div id="chat"></div>
+      <div id="composer">
+        <div id="suggest"></div>
+        <div id="inputrow">
+          <span id="prompt-mark">❯</span>
+          <input id="cmd" placeholder='try: "list components"  ·  "fields of Devices"  ·  "search Devices where IPAddress is not null"  ·  help' autocomplete="off" spellcheck="false"/>
+          <button id="send">RUN</button>
+        </div>
+      </div>
+    </div>
+    <aside id="inspector">
+      <header><span>wire · json-rpc</span><span id="wirecount">0</span></header>
+      <div id="wirelog"></div>
+    </aside>
+  </div>
+</div>
+
+<script>
+/* ================= state ================= */
+const S = {
+  auth:null, id:0, tools:[], calls:0, errors:0, lastMs:null,
+  user:null, history:[], hIdx:-1,
+};
+const $ = (q)=>document.querySelector(q);
+const chat = $('#chat'), wirelog = $('#wirelog');
+
+/* ================= MCP client ================= */
+async function rpc(method, params){
+  const id = ++S.id;
+  const payload = {jsonrpc:'2.0', id, method, params};
+  logWire('req', payload);
+  const t0 = performance.now();
+  const res = await fetch('/mcp', {
+    method:'POST',
+    headers:{
+      'authorization': S.auth,
+      'content-type':'application/json',
+      'accept':'application/json, text/event-stream',
+    },
+    body: JSON.stringify(payload),
+  });
+  S.lastMs = Math.round(performance.now()-t0);
+  const ctype = res.headers.get('content-type')||'';
+  const raw = await res.text();
+  if(res.status===401){ throw new Error('AUTH: '+(safeMsg(raw)||'unauthorized')); }
+  let msg = null;
+  if(ctype.includes('text/event-stream')){
+    for(const line of raw.split('\n')){
+      if(line.startsWith('data:')){ try{ const m = JSON.parse(line.slice(5)); if(m.id===id) msg=m; }catch{} }
+    }
+  } else { try{ msg = JSON.parse(raw); }catch{} }
+  logWire(msg && !msg.error ? 'res':'fail', msg ?? raw);
+  if(!msg) throw new Error('Bad response from server ('+res.status+')');
+  if(msg.error) throw new Error(msg.error.message||'RPC error');
+  return msg.result;
+}
+function safeMsg(raw){ try{ return JSON.parse(raw).error?.message; }catch{ return null; } }
+
+async function initialize(){
+  await rpc('initialize',{protocolVersion:'2025-03-26',capabilities:{},clientInfo:{name:'navex-console',version:'1.0'}});
+  const r = await rpc('tools/list',{});
+  S.tools = r.tools||[];
+  buildToolPalette();
+}
+async function callTool(name, args){
+  S.calls++;
+  const r = await rpc('tools/call',{name, arguments:args||{}});
+  updateSession();
+  const text = r?.content?.[0]?.text ?? '';
+  let data; try{ data = JSON.parse(text); }catch{ data = text; }
+  if(r?.isError){ S.errors++; updateSession(); const e = new Error(data?.error?.message||String(text)); e.toolError=true; throw e; }
+  return data;
+}
+
+/* ================= wire inspector ================= */
+function logWire(dir, obj){
+  const d = document.createElement('div'); d.className='wire '+dir;
+  const pre = typeof obj==='string'?obj:JSON.stringify(obj,null,1);
+  d.innerHTML = `<div class="dir">${dir==='req'?'→ REQUEST':dir==='res'?'← RESPONSE':'← ERROR'} · ${new Date().toLocaleTimeString()}</div><pre></pre>`;
+  d.querySelector('pre').textContent = pre.length>4000?pre.slice(0,4000)+' …':pre;
+  wirelog.appendChild(d); wirelog.scrollTop = wirelog.scrollHeight;
+  $('#wirecount').textContent = wirelog.children.length;
+}
+
+/* ================= chat rendering ================= */
+function addMsg(kind, who, node, meta){
+  const m = document.createElement('div'); m.className='msg '+kind;
+  const w = document.createElement('div'); w.className='who'; w.textContent=who;
+  const b = document.createElement('div'); b.className='body';
+  if(typeof node==='string') b.innerHTML=node; else b.appendChild(node);
+  m.append(w,b);
+  if(meta){ const mt=document.createElement('div'); mt.className='meta'; mt.textContent=meta; m.appendChild(mt); }
+  chat.appendChild(m); chat.scrollTop = chat.scrollHeight;
+  return m;
+}
+const esc = (s)=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function renderData(data){
+  const wrap = document.createElement('div');
+  if(Array.isArray(data) && data.length && typeof data[0]==='object' && data[0]!==null){
+    const rows = data.slice(0,60);
+    const cols = [...new Set(rows.flatMap(r=>Object.keys(r)))].slice(0,9);
+    let h = '<table class="grid"><thead><tr>'+cols.map(c=>`<th>${esc(c)}</th>`).join('')+'</tr></thead><tbody>';
+    for(const r of rows){
+      h+='<tr>'+cols.map(c=>{
+        let v = r[c];
+        if(v===null||v===undefined) v='·';
+        else if(typeof v==='object') v=JSON.stringify(v);
+        v=String(v); if(v.length>90)v=v.slice(0,90)+'…';
+        return `<td>${esc(v)}</td>`;
+      }).join('')+'</tr>';
+    }
+    h+='</tbody></table>';
+    if(data.length>60) h+=`<div class="meta">showing 60 of ${data.length}</div>`;
+    wrap.innerHTML=h;
+  } else if(typeof data==='object' && data!==null){
+    const pre=document.createElement('pre'); pre.textContent=JSON.stringify(data,null,2);
+    if(pre.textContent.length>6000) pre.textContent=pre.textContent.slice(0,6000)+'\n…truncated';
+    wrap.appendChild(pre);
+  } else {
+    const pre=document.createElement('pre'); pre.textContent=String(data); wrap.appendChild(pre);
+  }
+  return wrap;
+}
+function suggestChips(items){
+  const s=$('#suggest'); s.innerHTML='';
+  items.slice(0,7).forEach(t=>{
+    const c=document.createElement('span'); c.className='chip'; c.textContent=t;
+    c.onclick=()=>{ $('#cmd').value=t; $('#cmd').focus(); };
+    s.appendChild(c);
+  });
+}
+
+/* ================= natural-language command parser ================= */
+const OPS = [
+  [/\bis not (?:null|empty)\b/i,'IsNotNull',false],
+  [/\bis (?:null|empty)\b/i,'IsNull',false],
+  [/\bnot contains?\b|\bexcludes?\b/i,'Excludes',true],
+  [/\bcontains?\b|\bhas\b|\bincludes?\b/i,'Contains',true],
+  [/\bstarts? with\b/i,'StartsWith',true],
+  [/\bends? with\b/i,'EndsWith',true],
+  [/!=|<>|\bis not\b|\bnot equals?\b/i,'NotEqualTo',true],
+  [/>=/,'GreaterOrEqual',true],[/<=/,'LessOrEqual',true],
+  [/>/,'GreaterThan',true],[/</,'LessThan',true],
+  [/\bbetween\b/i,'Between',true],
+  [/=|\bis\b|\bequals?\b/i,'EqualTo',true],
+];
+function parseFilters(str){
+  // "Status = Open and Severity > 3"
+  return str.split(/\s+and\s+/i).map(part=>{
+    part=part.trim();
+    for(const [re,name,needsVal] of OPS){
+      const m = re.exec(part);
+      if(m){
+        const field = part.slice(0,m.index).trim().replace(/^["']|["']$/g,'');
+        let value = part.slice(m.index+m[0].length).trim().replace(/^["']|["']$/g,'');
+        if(!field) continue;
+        const f = {field, filterType:name};
+        if(needsVal && value!=='') f.value=value;
+        return f;
+      }
+    }
+    return null;
+  }).filter(Boolean);
+}
+function parsePaging(str){
+  const p={}; let m;
+  if((m=/\bpage\s+(\d+)/i.exec(str))) p.pageIndex=+m[1];
+  if((m=/\b(?:size|top|limit|first)\s+(\d+)/i.exec(str))) p.pageSize=+m[1];
+  return p;
+}
+function parseAssignments(str){
+  // field = value; field2 = value2   (";" or "," separated)
+  const out={};
+  for(const part of str.split(/[;,](?![^{]*})/)){
+    const m=/^\s*([^=]+?)\s*=\s*(.+?)\s*$/.exec(part);
+    if(!m) continue;
+    let v=m[2].replace(/^["']|["']$/g,'');
+    if(/^-?\d+(\.\d+)?$/.test(v)) v=+v;
+    else if(/^(true|false)$/i.test(v)) v=/^true$/i.test(v);
+    else if(/^null$/i.test(v)) v=null;
+    else if(/^\{.*\}$|^\[.*\]$/.test(v)){ try{v=JSON.parse(v);}catch{} }
+    out[m[1].trim()]=v;
+  }
+  return out;
+}
+
+/** Returns {tool, args, say} or {help:true} or null */
+function interpret(input){
+  const t = input.trim(); const low = t.toLowerCase();
+  let m;
+  if(/^(help|\?|what can you do)/i.test(low)) return {help:true};
+  if(/^ping|^status|alive/.test(low)) return {tool:'ping',args:{},say:'Checking the NAVEX session…'};
+  if(/^(logout|disconnect navex)/.test(low)) return {tool:'logout',args:{},say:'Ending NAVEX session…'};
+  if(/refresh (the )?(metadata|cache)|^invalidate/.test(low)) return {tool:'refresh_metadata',args:{confirm:true},say:'Clearing metadata cache…'};
+
+  if(/(list|show|get|what).*(components|tables)|^components?$/.test(low))
+    return {tool:'list_components',args:{},say:'Fetching components…'};
+
+  if((m=/(?:fields?|schema|columns?|structure|describe)\s+(?:of|in|for)?\s*([\w .-]+)/i.exec(t)) && /field|schema|column|describe|structure/.test(low))
+    return {tool:'get_fields',args:{component:m[1].trim()},say:`Loading schema of ${m[1].trim()}…`};
+
+  if((m=/lookup options? (?:for )?field\s+(\d+)/i.exec(t)))
+    return {tool:'get_lookup_options',args:{fieldId:+m[1],pageIndex:0,pageSize:25},say:'Fetching lookup options…'};
+
+  if((m=/count\s+(?:records?\s+)?(?:in\s+)?([\w .-]+?)(?:\s+where\s+(.+))?$/i.exec(t)) && /^count/.test(low) && !/users|groups/.test(low)){
+    const args={component:m[1].trim()};
+    if(m[2]) args.filters=parseFilters(m[2]);
+    return {tool:'count_records',args,say:`Counting records in ${m[1].trim()}…`};
+  }
+
+  if((m=/(?:search|find|show|list|get)\s+(?:records?\s+)?(?:in\s+|from\s+)?([\w .-]+?)\s+where\s+(.+)$/i.exec(t)) && !/users|groups/.test(low)){
+    const paging=parsePaging(m[2]);
+    const cleaned=m[2].replace(/\b(page|size|top|limit|first)\s+\d+/ig,'').trim().replace(/\s+and\s*$/i,'');
+    const args={component:m[1].trim(),filters:parseFilters(cleaned),pageIndex:paging.pageIndex??0,pageSize:paging.pageSize??25};
+    return {tool:'search_records',args,say:`Searching ${m[1].trim()}…`};
+  }
+  if((m=/(?:search|list|show)\s+(?:all\s+)?records\s+(?:in|from|of)\s+([\w .-]+?)(\s+page\s+\d+)?(\s+(?:size|top|limit)\s+\d+)?$/i.exec(t))){
+    const paging=parsePaging(t);
+    return {tool:'search_records',args:{component:m[1].trim(),pageIndex:paging.pageIndex??0,pageSize:paging.pageSize??25},say:`Listing records from ${m[1].trim()}…`};
+  }
+
+  if((m=/(?:get|show|open)\s+record\s+(\d+)\s+(?:from|in|of)\s+([\w .-]+?)(\s+detail(?:ed|s)?)?$/i.exec(t)))
+    return {tool:'get_record',args:{component:m[2].trim(),recordId:+m[1],detail:!!m[3]},say:`Fetching record ${m[1]}…`};
+
+  if((m=/create\s+(?:a\s+)?record\s+in\s+([\w .-]+?)\s+with\s+(.+)$/i.exec(t)))
+    return {tool:'create_record',args:{component:m[1].trim(),fields:parseAssignments(m[2])},say:`Creating record in ${m[1].trim()}…`};
+
+  if((m=/update\s+record\s+(\d+)\s+in\s+([\w .-]+?)\s+(?:set|with)\s+(.+)$/i.exec(t)))
+    return {tool:'update_record',args:{component:m[2].trim(),recordId:+m[1],fields:parseAssignments(m[3])},say:`Updating record ${m[1]}…`};
+
+  if((m=/delete\s+record\s+(\d+)\s+(?:from|in)\s+([\w .-]+?)(\s+confirm)?$/i.exec(t))){
+    if(!m[3]) return {confirmNeeded:`delete record ${m[1]} from ${m[2].trim()} confirm`};
+    return {tool:'delete_record',args:{component:m[2].trim(),recordId:+m[1],confirm:true},say:`Deleting record ${m[1]}…`};
+  }
+
+  if((m=/workflows?\s+(?:of|for|in)\s+([\w .-]+)/i.exec(t)))
+    return {tool:'get_workflows',args:{componentAlias:m[1].trim()},say:`Workflows of ${m[1].trim()}…`};
+  if((m=/^workflow\s+(\d+)/i.exec(t)))
+    return {tool:'get_workflow',args:{workflowId:+m[1]},say:`Workflow ${m[1]}…`};
+  if((m=/transition\s+record\s+(\d+)\s+in\s+([\w .-]+?)\s+(?:via|using|with|to)\s+(?:transition\s+)?(\d+)/i.exec(t)))
+    return {tool:'transition_record',args:{tableAlias:m[2].trim(),recordId:+m[1],transitionId:+m[3]},say:'Transitioning…'};
+  if((m=/vote\s+(?:on\s+)?record\s+(\d+)\s+in\s+([\w .-]+?)\s+(?:via|using|with)\s+(\d+)(?:\s*:\s*(.+))?/i.exec(t))){
+    const args={tableAlias:m[2].trim(),recordId:+m[1],transitionId:+m[3]}; if(m[4]) args.votingComments=m[4];
+    return {tool:'vote_record',args,say:'Casting vote…'};
+  }
+
+  if((m=/export\s+report\s+(\d+)(?:\s+as\s+(csv|pdf|xlsx))?/i.exec(t)))
+    return {tool:'export_report',args:{reportId:+m[1],format:(m[2]||'csv').toLowerCase()},say:`Exporting report ${m[1]}…`};
+
+  if(/(list|show|get)\s+(active\s+)?users|^users$/.test(low)){
+    const args={pageIndex:0,pageSize:25};
+    if(/active/.test(low)) args.filters=[{shortName:'Active',filterType:'EqualTo',value:'true'}];
+    return {tool:'list_users',args,say:'Fetching users…'};
+  }
+  if((m=/^(?:get\s+)?user\s+(\d+)/i.exec(t))) return {tool:'get_user',args:{userId:+m[1]},say:`User ${m[1]}…`};
+  if(/count\s+users/.test(low)) return {tool:'get_user_count',args:{},say:'Counting users…'};
+  if(/(list|show|get)\s+groups|^groups$/.test(low)) return {tool:'list_groups',args:{pageIndex:0,pageSize:25},say:'Fetching groups…'};
+  if((m=/^(?:get\s+)?group\s+(\d+)/i.exec(t))) return {tool:'get_group',args:{groupId:+m[1]},say:`Group ${m[1]}…`};
+
+  if((m=/attachments?\s+(?:of|on|for)\s+record\s+(\d+)\s+in\s+([\w .-]+?)\s+field\s+([\w .-]+)/i.exec(t)))
+    return {tool:'list_attachments',args:{component:m[2].trim(),recordId:+m[1],field:isNaN(+m[3])?m[3].trim():+m[3]},say:'Listing attachments…'};
+
+  if((m=/^call\s+(\w+)\s*(\{.*\})?\s*$/is.exec(t))){
+    let args={}; if(m[2]){ try{args=JSON.parse(m[2]);}catch(e){ return {parseErr:'Invalid JSON arguments: '+e.message}; } }
+    return {tool:m[1],args,say:`Calling ${m[1]}…`};
+  }
+  return null;
+}
+
+const HELP = `
+<b>Talk to NAVEX in plain commands.</b> Examples:
+<table class="grid"><tbody>
+<tr><td><code>list components</code></td><td>discover DCF tables</td></tr>
+<tr><td><code>fields of Devices</code></td><td>show a table's schema</td></tr>
+<tr><td><code>search Devices where IPAddress is not null top 10</code></td><td>filtered search (=, !=, contains, starts with, &gt;, &lt;, is null, between a|b … combine with <code>and</code>)</td></tr>
+<tr><td><code>count Incident Reports where Status = Open</code></td><td>record counts</td></tr>
+<tr><td><code>get record 155 from Devices detail</code></td><td>one record (+lookups)</td></tr>
+<tr><td><code>create record in Devices with DNSName = web01; Cost = 250</code></td><td>create</td></tr>
+<tr><td><code>update record 155 in Devices set Cost = 300</code></td><td>update</td></tr>
+<tr><td><code>delete record 9 from Devices</code></td><td>asks for confirm</td></tr>
+<tr><td><code>workflows of Devices</code> · <code>workflow 10</code></td><td>workflow stages + transition IDs</td></tr>
+<tr><td><code>transition record 2 in Devices via 42</code></td><td>move workflow stage</td></tr>
+<tr><td><code>export report 3962 as csv</code></td><td>report export (csv preview inline)</td></tr>
+<tr><td><code>list active users</code> · <code>groups</code> · <code>user 8090</code></td><td>security service</td></tr>
+<tr><td><code>attachments of record 16 in Vendors field 11503</code></td><td>documents fields</td></tr>
+<tr><td><code>call any_tool {"json":"args"}</code></td><td>raw escape hatch</td></tr>
+</tbody></table>
+Or click any tool in the left palette for a guided form.`;
+
+/* ================= command execution ================= */
+async function run(input){
+  if(!input.trim()) return;
+  S.history.unshift(input); S.hIdx=-1;
+  addMsg('user', S.user||'you', esc(input));
+  const intent = interpret(input);
+  if(!intent){
+    addMsg('bot','console',`Didn't catch that. Type <code>help</code> for the command patterns, or use the tool palette on the left.`);
+    suggestChips(['help','list components','list active users']);
+    return;
+  }
+  if(intent.help){ addMsg('bot','console',HELP); return; }
+  if(intent.parseErr){ addMsg('err','console',esc(intent.parseErr)); return; }
+  if(intent.confirmNeeded){
+    addMsg('bot','console',`⚠ That's destructive. To proceed, run: <code>${esc(intent.confirmNeeded)}</code>`);
+    suggestChips([intent.confirmNeeded]); return;
+  }
+  await invoke(intent.tool, intent.args, intent.say);
+}
+
+async function invoke(tool, args, say){
+  const btn=$('#send'); btn.disabled=true;
+  const pending = addMsg('bot','console',`<span style="color:var(--txt-dim)">${esc(say||('Calling '+tool+'…'))}</span>`);
+  try{
+    const data = await callTool(tool, args);
+    pending.remove();
+    addMsg('bot','navex', renderData(data), `${tool} · ${S.lastMs}ms`);
+    afterSuggestions(tool, data);
+  }catch(e){
+    pending.remove(); S.errors++; updateSession();
+    addMsg('err','error', esc(e.message), tool+' · '+(S.lastMs??'—')+'ms');
+    if(/AUTH/.test(e.message)) openGate('Session refused — check credentials.');
+  }finally{ btn.disabled=false; $('#cmd').focus(); }
+}
+
+function afterSuggestions(tool, data){
+  if(tool==='list_components' && Array.isArray(data))
+    suggestChips(data.slice(0,4).map(c=>`fields of ${c.ShortName}`));
+  else if(tool==='get_fields' && Array.isArray(data)){
+    const comp = /of ([\w .-]+)/.exec($('#suggest').dataset.ctx||'');
+    suggestChips([`search records in ${lastComponent||'…'} top 10`]);
+  }
+  else if(tool==='search_records' && Array.isArray(data) && data.length)
+    suggestChips([`get record ${data[0].Id} from ${lastComponent} detail`,`count ${lastComponent}`]);
+  else if(tool==='get_workflows' && Array.isArray(data) && data.length)
+    suggestChips([`workflow ${data[0].Id}`]);
+}
+let lastComponent=null;
+const _origInvoke = invoke;
+invoke = async (tool,args,say)=>{ if(args&&(args.component||args.componentAlias||args.tableAlias)) lastComponent=args.component||args.componentAlias||args.tableAlias; return _origInvoke(tool,args,say); };
+
+/* ================= tool palette + forms ================= */
+const GROUPS = [
+  ['Discovery',['list_components','get_component','get_fields','get_field','get_lookup_options']],
+  ['Records',['search_records','count_records','get_record','create_record','update_record','delete_record','import_file']],
+  ['Workflow',['get_workflows','get_workflow','transition_record','vote_record']],
+  ['Reports & Assessments',['export_report','issue_assessment']],
+  ['Attachments',['list_attachments','get_attachment','upload_attachment','delete_attachments']],
+  ['Users & Groups',['get_user','list_users','get_user_count','create_user','update_user','delete_user','get_group','list_groups','create_group','update_group','delete_group']],
+  ['Session',['ping','logout','refresh_metadata']],
+];
+function buildToolPalette(){
+  const byName = Object.fromEntries(S.tools.map(t=>[t.name,t]));
+  const root=$('#toolgroups'); root.innerHTML='';
+  for(const [label,names] of GROUPS){
+    const present = names.filter(n=>byName[n]); if(!present.length) continue;
+    const h=document.createElement('h3'); h.textContent=label; root.appendChild(h);
+    for(const n of present){
+      const t=byName[n];
+      const b=document.createElement('button'); b.className='toolrow'+(/delete/.test(n)?' danger':'');
+      b.innerHTML=`<span>${n}</span><span class="tag">${/delete/.test(n)?'DANGER':'›'}</span>`;
+      b.title=t.description||''; b.onclick=()=>openToolForm(t);
+      root.appendChild(b);
+    }
+  }
+}
+function openToolForm(tool){
+  const wrap=$('#modalwrap'), mod=$('#modal');
+  const props = tool.inputSchema?.properties||{};
+  const required = new Set(tool.inputSchema?.required||[]);
+  let h=`<h2>${esc(tool.name)}</h2><div class="desc">${esc(tool.description||'')}</div><form id="toolform">`;
+  for(const [k,v] of Object.entries(props)){
+    const req = required.has(k)?'<span class="req"> *</span>':'';
+    h+=`<label>${esc(k)}${req}</label>`;
+    const ty = v.type || (v.anyOf? 'any':'string');
+    if(ty==='boolean') h+=`<select name="${esc(k)}" data-ty="boolean"><option value="">—</option><option>true</option><option>false</option></select>`;
+    else if(v.enum) h+=`<select name="${esc(k)}" data-ty="string"><option value="">—</option>${v.enum.map(e=>`<option>${esc(e)}</option>`).join('')}</select>`;
+    else if(ty==='object'||ty==='array') h+=`<textarea name="${esc(k)}" data-ty="json" placeholder='JSON'></textarea>`;
+    else if(ty==='number'||ty==='integer') h+=`<input name="${esc(k)}" data-ty="number" inputmode="numeric"/>`;
+    else h+=`<input name="${esc(k)}" data-ty="any"/>`;
+    if(v.description) h+=`<div class="hint">${esc(v.description)}</div>`;
+  }
+  h+=`<div class="actions"><button type="button" class="tbtn" id="m-cancel">cancel</button><button type="submit" class="tbtn primary">RUN ${esc(tool.name)}</button></div></form>`;
+  mod.innerHTML=h; wrap.classList.add('open');
+  $('#m-cancel').onclick=()=>wrap.classList.remove('open');
+  wrap.onclick=(e)=>{ if(e.target===wrap) wrap.classList.remove('open'); };
+  $('#toolform').onsubmit=(e)=>{
+    e.preventDefault();
+    const args={};
+    for(const el of e.target.elements){
+      if(!el.name||el.value==='') continue;
+      const ty=el.dataset.ty; let v=el.value;
+      if(ty==='number') v=+v;
+      else if(ty==='boolean') v=v==='true';
+      else if(ty==='json'){ try{v=JSON.parse(v);}catch(err){ alert(el.name+': invalid JSON'); return; } }
+      else if(ty==='any'){
+        if(/^-?\d+(\.\d+)?$/.test(v)) v=+v;
+        else if(/^(true|false)$/.test(v)) v=v==='true';
+        else if(/^\{|^\[/.test(v)){ try{v=JSON.parse(v);}catch{} }
+      }
+      args[el.name]=v;
+    }
+    wrap.classList.remove('open');
+    addMsg('user', S.user||'you', esc(tool.name+' '+JSON.stringify(args)));
+    invoke(tool.name, args);
+  };
+}
+
+/* ================= demo tour ================= */
+async function demoTour(){
+  addMsg('bot','console','<b>▶ Demo tour</b> — session check → discover components → inspect a schema → pull records.');
+  try{
+    await invoke('ping',{},'1/4 · verifying NAVEX session…');
+    const comps = await callTool('list_components',{});
+    addMsg('bot','navex', renderData(comps), 'list_components · '+S.lastMs+'ms');
+    const first = Array.isArray(comps)&&comps[0]; if(!first){ return; }
+    lastComponent = first.ShortName;
+    await invoke('get_fields',{component:first.ShortName},`3/4 · schema of ${first.ShortName}…`);
+    await invoke('search_records',{component:first.ShortName,pageIndex:0,pageSize:10},`4/4 · first 10 records of ${first.ShortName}…`);
+    addMsg('bot','console','Tour complete. Try <code>help</code> to see everything you can ask.');
+  }catch(e){ addMsg('err','error',esc(e.message)); }
+}
+
+/* ================= session / connect ================= */
+function updateSession(){
+  $('#sessioninfo').innerHTML=`latency ${S.lastMs??'—'}ms<br/>calls ${S.calls} · errors ${S.errors}`;
+}
+function openGate(msg){
+  $('#gate').style.display='flex'; $('#dot').classList.remove('on');
+  $('#conninfo').textContent='disconnected';
+  if(msg) $('#g-err').textContent=msg;
+}
+async function connect(){
+  const u=$('#g-user').value.trim(), p=$('#g-pass').value;
+  if(!u||!p){ $('#g-err').textContent='Username and password required.'; return; }
+  $('#g-err').textContent=''; $('#g-go').textContent='CONNECTING…';
+  S.auth='Basic '+btoa(unescape(encodeURIComponent(u+':'+p))); S.user=u;
+  try{
+    await initialize();
+    $('#gate').style.display='none';
+    $('#dot').classList.add('on');
+    $('#conninfo').textContent=u+' @ '+location.host;
+    addMsg('bot','console',`Connected as <code>${esc(u)}</code> — ${S.tools.length} tools loaded. Type <code>help</code>, hit <b>▶ demo tour</b>, or just ask: <code>list components</code>`);
+    suggestChips(['list components','help','list active users']);
+  }catch(e){
+    S.auth=null; $('#g-err').textContent=e.message;
+  }finally{ $('#g-go').textContent='ESTABLISH SESSION'; }
+}
+
+/* ================= wiring ================= */
+$('#g-host').textContent=location.origin;
+$('#g-go').onclick=connect;
+$('#g-pass').addEventListener('keydown',e=>{ if(e.key==='Enter') connect(); });
+$('#send').onclick=()=>{ const v=$('#cmd').value; $('#cmd').value=''; run(v); };
+$('#cmd').addEventListener('keydown',e=>{
+  if(e.key==='Enter'){ const v=e.target.value; e.target.value=''; run(v); }
+  else if(e.key==='ArrowUp'){ if(S.hIdx<S.history.length-1){S.hIdx++; e.target.value=S.history[S.hIdx];} e.preventDefault(); }
+  else if(e.key==='ArrowDown'){ if(S.hIdx>0){S.hIdx--; e.target.value=S.history[S.hIdx];} else {S.hIdx=-1; e.target.value='';} e.preventDefault(); }
+});
+$('#btn-inspector').onclick=()=>$('#main').classList.toggle('inspector-open');
+$('#btn-clear').onclick=()=>{ chat.innerHTML=''; };
+$('#btn-tour').onclick=demoTour;
+$('#btn-logout').onclick=async()=>{ try{ if(S.auth) await callTool('logout',{});}catch{} S.auth=null; openGate(); };
+</script>
+</body>
+</html>

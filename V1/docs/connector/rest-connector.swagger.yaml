@@ -1,0 +1,163 @@
+# Power Platform custom connector for the REST facade.
+# This is what your 30+ Power Automate cloud flows migrate onto, replacing
+# raw HTTP actions + per-flow cookie handling.
+# Auth: Basic (each connection holds a NAVEX username/password — per-user
+# permissions preserved) or API key (x-api-key -> service account).
+swagger: '2.0'
+info:
+  title: NAVEX IRM
+  description: REST facade over the NAVEX IRM Platform API with managed sessions.
+  version: 1.0.0
+host: your-app.azurecontainerapps.io   # <-- replace with your deployed host
+basePath: /api
+schemes: [https]
+consumes: [application/json]
+produces: [application/json]
+securityDefinitions:
+  basicAuth:
+    type: basic
+security:
+  - basicAuth: []
+paths:
+  /components:
+    get:
+      operationId: ListComponents
+      summary: List components
+      responses: { '200': { description: OK } }
+  /components/{component}:
+    get:
+      operationId: GetComponent
+      summary: Get component by ID or alias
+      parameters:
+        - { name: component, in: path, required: true, type: string }
+      responses: { '200': { description: OK } }
+  /components/{component}/fields:
+    get:
+      operationId: GetFields
+      summary: Get component fields
+      parameters:
+        - { name: component, in: path, required: true, type: string }
+      responses: { '200': { description: OK } }
+  /components/{component}/records/search:
+    post:
+      operationId: SearchRecords
+      summary: Search records
+      parameters:
+        - { name: component, in: path, required: true, type: string }
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              pageIndex: { type: integer, default: 0 }
+              pageSize: { type: integer, default: 50 }
+              detail: { type: boolean, default: false }
+              filters:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    field: { type: string, description: Field name or ID }
+                    filterType: { type: string, description: 'EqualTo, NotEqualTo, Contains, IsNull, IsNotNull, Between, ...' }
+                    value: { type: string }
+      responses: { '200': { description: OK } }
+  /components/{component}/records:
+    post:
+      operationId: CreateRecord
+      summary: Create record
+      parameters:
+        - { name: component, in: path, required: true, type: string }
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              fields: { type: object, description: 'Map of field name -> value' }
+      responses: { '200': { description: OK } }
+  /components/{component}/records/{recordId}:
+    get:
+      operationId: GetRecord
+      summary: Get record
+      parameters:
+        - { name: component, in: path, required: true, type: string }
+        - { name: recordId, in: path, required: true, type: integer }
+      responses: { '200': { description: OK } }
+    patch:
+      operationId: UpdateRecord
+      summary: Update record
+      parameters:
+        - { name: component, in: path, required: true, type: string }
+        - { name: recordId, in: path, required: true, type: integer }
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              fields: { type: object }
+      responses: { '200': { description: OK } }
+    delete:
+      operationId: DeleteRecord
+      summary: Delete record (soft delete)
+      parameters:
+        - { name: component, in: path, required: true, type: string }
+        - { name: recordId, in: path, required: true, type: integer }
+      responses: { '200': { description: OK } }
+  /workflows:
+    get:
+      operationId: GetWorkflows
+      summary: List workflows for a component alias
+      parameters:
+        - { name: componentAlias, in: query, required: true, type: string }
+      responses: { '200': { description: OK } }
+  /workflows/transition:
+    post:
+      operationId: TransitionRecord
+      summary: Transition a record to another workflow stage
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            required: [tableAlias, recordId, transitionId]
+            properties:
+              tableAlias: { type: string }
+              recordId: { type: integer }
+              transitionId: { type: integer }
+      responses: { '200': { description: OK } }
+  /reports/{id}/export:
+    get:
+      operationId: ExportReport
+      summary: Export a report (base64)
+      parameters:
+        - { name: id, in: path, required: true, type: integer }
+        - { name: format, in: query, type: string, enum: [csv, pdf, xlsx], default: csv }
+      responses: { '200': { description: OK } }
+  /assessments/issue:
+    post:
+      operationId: IssueAssessment
+      summary: Issue an assessment
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema: { type: object }
+      responses: { '200': { description: OK } }
+  /users/search:
+    post:
+      operationId: SearchUsers
+      summary: List users
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              pageIndex: { type: integer, default: 0 }
+              pageSize: { type: integer, default: 50 }
+              filters: { type: array, items: { type: object } }
+      responses: { '200': { description: OK } }

@@ -1,0 +1,259 @@
+{
+  "nodeId": "Try",
+  "serializedValue": {
+    "type": "Scope",
+    "actions": {
+      "Login": {
+        "type": "Http",
+        "inputs": {
+          "uri": "@{variables('BaseUrl')}/SecurityService/Login",
+          "method": "POST",
+          "body": "<Login>\n<username>ambassador.user</username>\n<password>76U#>`+*'D+TfE3f</password>\n</Login>"
+        },
+        "metadata": { "operationMetadataId": "befff806-cfa3-4dde-8d9c-78259861cefc" }
+      },
+      "Login_Cookie": {
+        "type": "Compose",
+        "inputs": "@outputs('Login')['headers']['Set-Cookie']",
+        "runAfter": { "Login": ["Succeeded"] }
+      },
+      "GetDetailRecords_http": {
+        "type": "Http",
+        "inputs": {
+          "uri": "@{variables('BaseUrl')}/ComponentService/GetDetailRecords",
+          "method": "POST",
+          "headers": { "Content-Type": "application/json" },
+          "body": {
+            "componentId": 10215,
+            "pageIndex": 0,
+            "pageSize": 100,
+            "filters": [
+              { "FieldPath": [12927], "FilterType": 5, "Value": "false" },
+              { "FieldPath": [4209], "FilterType": 9, "Value": "@{formatDateTime(addDays(utcNow(),-2),'yyyy-MM-dd')}T00:00:00" },
+              { "FieldPath": [4209], "FilterType": 8, "Value": "@{formatDateTime(utcNow(),'yyyy-MM-dd')}T00:00:00" }
+            ],
+            "fieldIds": [7972, 11955]
+          },
+          "cookie": "@outputs('Login_Cookie')"
+        },
+        "runAfter": { "Login_Cookie": ["Succeeded"] },
+        "runtimeConfiguration": { "contentTransfer": { "transferMode": "Chunked" } }
+      },
+      "Apply_to_each_TPRA": {
+        "type": "Foreach",
+        "foreach": "@body('GetDetailRecords_http')",
+        "actions": {
+          "Filter_Risks": {
+            "type": "Query",
+            "inputs": {
+              "from": "@items('Apply_to_each_TPRA')?['FieldValues']",
+              "where": "@equals(item()?['Key'], 7972)"
+            },
+            "runAfter": {}
+          },
+          "Apply_to_each_Risk": {
+            "type": "Foreach",
+            "foreach": "@first(body('Filter_Risks'))?['Value']",
+            "actions": {
+              "Close_Risk_Status": {
+                "type": "Http",
+                "inputs": {
+                  "uri": "@{variables('BaseUrl')}/ComponentService/UpdateRecord",
+                  "method": "POST",
+                  "headers": { "Content-Type": "application/json" },
+                  "body": {
+                    "componentId": 10012,
+                    "dynamicRecord": {
+                      "Id": "@{items('Apply_to_each_Risk')?['Id']}",
+                      "FieldValues": [ { "key": 13538, "value": { "Id": 6 } } ]
+                    }
+                  },
+                  "cookie": "@outputs('Login_Cookie')"
+                },
+                "runAfter": {},
+                "runtimeConfiguration": { "contentTransfer": { "transferMode": "Chunked" } }
+              },
+              "Get_Risk_Stage": {
+                "type": "Http",
+                "inputs": {
+                  "uri": "@{variables('BaseUrl')}/ComponentService/GetDetailRecords",
+                  "method": "POST",
+                  "headers": { "Content-Type": "application/json" },
+                  "body": {
+                    "componentId": 10012,
+                    "pageIndex": 0,
+                    "pageSize": 1,
+                    "filters": [ { "FieldPath": [519], "FilterType": 5, "Value": "@{items('Apply_to_each_Risk')?['Id']}" } ],
+                    "fieldIds": [526]
+                  },
+                  "cookie": "@outputs('Login_Cookie')"
+                },
+                "runAfter": { "Close_Risk_Status": ["Succeeded"] },
+                "runtimeConfiguration": { "contentTransfer": { "transferMode": "Chunked" } }
+              },
+              "Filter_Risk_StageField": {
+                "type": "Query",
+                "inputs": {
+                  "from": "@first(body('Get_Risk_Stage'))?['FieldValues']",
+                  "where": "@equals(item()?['Key'], 526)"
+                },
+                "runAfter": { "Get_Risk_Stage": ["Succeeded"] }
+              },
+              "Compose_Risk_StageId": {
+                "type": "Compose",
+                "inputs": "@first(body('Filter_Risk_StageField'))?['Value']?['Id']",
+                "runAfter": { "Filter_Risk_StageField": ["Succeeded"] }
+              },
+              "Switch_Risk_Stage": {
+                "type": "Switch",
+                "expression": "@string(outputs('Compose_Risk_StageId'))",
+                "cases": {
+                  "Risk_New_213": {
+                    "case": "213",
+                    "actions": {
+                      "Transition_Risk_New": {
+                        "type": "Http",
+                        "inputs": {
+                          "uri": "@{variables('BaseUrl')}/ComponentService/TransitionRecord",
+                          "method": "POST",
+                          "headers": { "Content-Type": "application/json" },
+                          "body": { "tableAlias": "Risks", "recordId": "@items('Apply_to_each_Risk')?['Id']", "transitionId": 165 },
+                          "cookie": "@outputs('Login_Cookie')"
+                        },
+                        "runAfter": {},
+                        "runtimeConfiguration": { "contentTransfer": { "transferMode": "Chunked" } }
+                      }
+                    }
+                  },
+                  "Risk_Open_216": {
+                    "case": "216",
+                    "actions": {
+                      "Transition_Risk_Open": {
+                        "type": "Http",
+                        "inputs": {
+                          "uri": "@{variables('BaseUrl')}/ComponentService/TransitionRecord",
+                          "method": "POST",
+                          "headers": { "Content-Type": "application/json" },
+                          "body": { "tableAlias": "Risks", "recordId": "@items('Apply_to_each_Risk')?['Id']", "transitionId": 166 },
+                          "cookie": "@outputs('Login_Cookie')"
+                        },
+                        "runAfter": {},
+                        "runtimeConfiguration": { "contentTransfer": { "transferMode": "Chunked" } }
+                      }
+                    }
+                  },
+                  "Risk_PastDue_215": {
+                    "case": "215",
+                    "actions": {
+                      "Transition_Risk_PastDue": {
+                        "type": "Http",
+                        "inputs": {
+                          "uri": "@{variables('BaseUrl')}/ComponentService/TransitionRecord",
+                          "method": "POST",
+                          "headers": { "Content-Type": "application/json" },
+                          "body": { "tableAlias": "Risks", "recordId": "@items('Apply_to_each_Risk')?['Id']", "transitionId": 102 },
+                          "cookie": "@outputs('Login_Cookie')"
+                        },
+                        "runAfter": {},
+                        "runtimeConfiguration": { "contentTransfer": { "transferMode": "Chunked" } }
+                      }
+                    }
+                  }
+                },
+                "default": { "actions": {} },
+                "runAfter": { "Compose_Risk_StageId": ["Succeeded"] }
+              }
+            },
+            "runAfter": { "Filter_Risks": ["Succeeded"] }
+          },
+          "Filter_Register": {
+            "type": "Query",
+            "inputs": {
+              "from": "@items('Apply_to_each_TPRA')?['FieldValues']",
+              "where": "@equals(item()?['Key'], 11955)"
+            },
+            "runAfter": { "Apply_to_each_Risk": ["Succeeded"] }
+          },
+          "Apply_to_each_Register": {
+            "type": "Foreach",
+            "foreach": "@first(body('Filter_Register'))?['Value']",
+            "actions": {
+              "Close_Register_Status": {
+                "type": "Http",
+                "inputs": {
+                  "uri": "@{variables('BaseUrl')}/ComponentService/UpdateRecord",
+                  "method": "POST",
+                  "headers": { "Content-Type": "application/json" },
+                  "body": {
+                    "componentId": 10560,
+                    "dynamicRecord": {
+                      "Id": "@{items('Apply_to_each_Register')?['Id']}",
+                      "FieldValues": [ { "key": 13032, "value": { "Id": 6 } } ]
+                    }
+                  },
+                  "cookie": "@outputs('Login_Cookie')"
+                },
+                "runAfter": {},
+                "runtimeConfiguration": { "contentTransfer": { "transferMode": "Chunked" } }
+              },
+              "Get_Register_Stage": {
+                "type": "Http",
+                "inputs": {
+                  "uri": "@{variables('BaseUrl')}/ComponentService/GetDetailRecords",
+                  "method": "POST",
+                  "headers": { "Content-Type": "application/json" },
+                  "body": {
+                    "componentId": 10560,
+                    "pageIndex": 0,
+                    "pageSize": 1,
+                    "filters": [ { "FieldPath": [10998], "FilterType": 5, "Value": "@{items('Apply_to_each_Register')?['Id']}" } ],
+                    "fieldIds": [11008]
+                  },
+                  "cookie": "@outputs('Login_Cookie')"
+                },
+                "runAfter": { "Close_Register_Status": ["Succeeded"] },
+                "runtimeConfiguration": { "contentTransfer": { "transferMode": "Chunked" } }
+              },
+              "Filter_Register_StageField": {
+                "type": "Query",
+                "inputs": {
+                  "from": "@first(body('Get_Register_Stage'))?['FieldValues']",
+                  "where": "@equals(item()?['Key'], 11008)"
+                },
+                "runAfter": { "Get_Register_Stage": ["Succeeded"] }
+              },
+              "Compose_Register_StageId": {
+                "type": "Compose",
+                "inputs": "@first(body('Filter_Register_StageField'))?['Value']?['Id']",
+                "runAfter": { "Filter_Register_StageField": ["Succeeded"] }
+              },
+              "Switch_Register_Stage": {
+                "type": "Switch",
+                "expression": "@string(outputs('Compose_Register_StageId'))",
+                "cases": {
+                  "Reg_Identify_526": { "case": "526", "actions": { "Transition_Register_526": { "type": "Http", "inputs": { "uri": "@{variables('BaseUrl')}/ComponentService/TransitionRecord", "method": "POST", "headers": { "Content-Type": "application/json" }, "body": { "tableAlias": "_RiskRegister", "recordId": "@items('Apply_to_each_Register')?['Id']", "transitionId": 263 }, "cookie": "@outputs('Login_Cookie')" }, "runAfter": {}, "runtimeConfiguration": { "contentTransfer": { "transferMode": "Chunked" } } } } },
+                  "Reg_Analysis_520": { "case": "520", "actions": { "Transition_Register_520": { "type": "Http", "inputs": { "uri": "@{variables('BaseUrl')}/ComponentService/TransitionRecord", "method": "POST", "headers": { "Content-Type": "application/json" }, "body": { "tableAlias": "_RiskRegister", "recordId": "@items('Apply_to_each_Register')?['Id']", "transitionId": 310 }, "cookie": "@outputs('Login_Cookie')" }, "runAfter": {}, "runtimeConfiguration": { "contentTransfer": { "transferMode": "Chunked" } } } } },
+                  "Reg_Ownership_521": { "case": "521", "actions": { "Transition_Register_521": { "type": "Http", "inputs": { "uri": "@{variables('BaseUrl')}/ComponentService/TransitionRecord", "method": "POST", "headers": { "Content-Type": "application/json" }, "body": { "tableAlias": "_RiskRegister", "recordId": "@items('Apply_to_each_Register')?['Id']", "transitionId": 311 }, "cookie": "@outputs('Login_Cookie')" }, "runAfter": {}, "runtimeConfiguration": { "contentTransfer": { "transferMode": "Chunked" } } } } },
+                  "Reg_Treatment_522": { "case": "522", "actions": { "Transition_Register_522": { "type": "Http", "inputs": { "uri": "@{variables('BaseUrl')}/ComponentService/TransitionRecord", "method": "POST", "headers": { "Content-Type": "application/json" }, "body": { "tableAlias": "_RiskRegister", "recordId": "@items('Apply_to_each_Register')?['Id']", "transitionId": 317 }, "cookie": "@outputs('Login_Cookie')" }, "runAfter": {}, "runtimeConfiguration": { "contentTransfer": { "transferMode": "Chunked" } } } } },
+                  "Reg_RAReview_523": { "case": "523", "actions": { "Transition_Register_523": { "type": "Http", "inputs": { "uri": "@{variables('BaseUrl')}/ComponentService/TransitionRecord", "method": "POST", "headers": { "Content-Type": "application/json" }, "body": { "tableAlias": "_RiskRegister", "recordId": "@items('Apply_to_each_Register')?['Id']", "transitionId": 313 }, "cookie": "@outputs('Login_Cookie')" }, "runAfter": {}, "runtimeConfiguration": { "contentTransfer": { "transferMode": "Chunked" } } } } },
+                  "Reg_SMEApproval_559": { "case": "559", "actions": { "Transition_Register_559": { "type": "Http", "inputs": { "uri": "@{variables('BaseUrl')}/ComponentService/TransitionRecord", "method": "POST", "headers": { "Content-Type": "application/json" }, "body": { "tableAlias": "_RiskRegister", "recordId": "@items('Apply_to_each_Register')?['Id']", "transitionId": 319 }, "cookie": "@outputs('Login_Cookie')" }, "runAfter": {}, "runtimeConfiguration": { "contentTransfer": { "transferMode": "Chunked" } } } } },
+                  "Reg_Monitor_524": { "case": "524", "actions": { "Transition_Register_524": { "type": "Http", "inputs": { "uri": "@{variables('BaseUrl')}/ComponentService/TransitionRecord", "method": "POST", "headers": { "Content-Type": "application/json" }, "body": { "tableAlias": "_RiskRegister", "recordId": "@items('Apply_to_each_Register')?['Id']", "transitionId": 219 }, "cookie": "@outputs('Login_Cookie')" }, "runAfter": {}, "runtimeConfiguration": { "contentTransfer": { "transferMode": "Chunked" } } } } },
+                  "Reg_Disposition_525": { "case": "525", "actions": { "Transition_Register_525": { "type": "Http", "inputs": { "uri": "@{variables('BaseUrl')}/ComponentService/TransitionRecord", "method": "POST", "headers": { "Content-Type": "application/json" }, "body": { "tableAlias": "_RiskRegister", "recordId": "@items('Apply_to_each_Register')?['Id']", "transitionId": 213 }, "cookie": "@outputs('Login_Cookie')" }, "runAfter": {}, "runtimeConfiguration": { "contentTransfer": { "transferMode": "Chunked" } } } } }
+                },
+                "default": { "actions": {} },
+                "runAfter": { "Compose_Register_StageId": ["Succeeded"] }
+              }
+            },
+            "runAfter": { "Filter_Register": ["Succeeded"] }
+          }
+        },
+        "runAfter": { "GetDetailRecords_http": ["Succeeded"] }
+      }
+    },
+    "runAfter": { "Navex_Env_URL": ["Succeeded"] }
+  },
+  "allConnectionData": {},
+  "staticResults": {},
+  "isScopeNode": true,
+  "mslaNode": true
+}
