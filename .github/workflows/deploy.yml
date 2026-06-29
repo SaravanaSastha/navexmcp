@@ -1,0 +1,23 @@
+name: Build and Push to ACR
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Login to ACR
+      uses: azure/docker-login@v1
+      with:
+        login-server: navexmcpcr.azurecr.io
+        username: ${{ secrets.ACR_USERNAME }}
+        password: ${{ secrets.ACR_PASSWORD }}
+
+    - name: Build and Push
+      run: |
+        docker build -t navexmcpcr.azurecr.io/navex-mcp:v1 .
+        docker push navexmcpcr.azurecr.io/navex-mcp:v1
